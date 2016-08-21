@@ -1,4 +1,4 @@
-This is a program that read a mail from =stdin=, and copy it to your
+This program reads a mail from =stdin=, and copy it to your
 Gmail account(or any other IMAP account);
 
 * Getting started
@@ -7,7 +7,7 @@ env USERNAME=myname@gmail.com PASSWORD=secret ./copy2gmail important < ~/.maildi
 #+end_src
 
 This command will login the gmail via IMAP with the given credentials,
-and copy the mail that file into the Gmail folder `important`. The
+and copy the mail in that file into the Gmail folder ~important~. The
 folder will be created automatically if it does not exist.
 
 * Folder mapping
@@ -16,16 +16,29 @@ folder will be created automatically if it does not exist.
   should return a list of folder names the mail should be copied into.
   Return ~[]~ if you want to drop the mail.
 
-  Most Gmail client only push notifications for mails going into
+  Most Gmail clients push notifications for only mails going into
   ~INBOX~, so in order to receive notifications for a mail, it should
   be copied into ~INBOX~.
 
-  Don't worry about duplicates; IMAP folder is just Gmail tags, if you
+  Don't worry about duplicates; IMAP folder is just Gmail tag, if you
   copy a mail into multiple folders, it will be a single mail with multiple tags. For
   example, if a mail is copied into ~important~ and ~INBOX~, then the
   mail will has two tags: ~important~ and ~INBOX~.
 
-  The default ~folder2tags~ pass the folder directly.
+  The default ~folder2tags~ maps ~foo~ to ~[foo, INBOX]~; Here is
+  another example:
+  #+begin_src haskell
+    folder2tags f =
+      let f' = (T.unpack f) in
+        -- drop the mail sent to v2ex@example.org
+        if f' == "v2ex" then []
+        -- mail sent to feed@riaqn.org will have the "feed" tag, but won't
+        -- go into INBOX, so no notification
+        else if f' == "feed" then [f]
+        -- other mails(say, foo@riaqn.org) have both "foo" and "INBOX"
+        -- tags, and push notification
+        else [f, (T.pack "INBOX")]
+  #+end_src
 * Self hosted SMTP server
   If you have a domain name and SMTP server, and you want to store the
   mail on Gmail server instead of your own server, please continue
@@ -50,5 +63,5 @@ folder will be created automatically if it does not exist.
     copy2gmail  unix  -       n       n       -       -       pipe
       flags=ODRhu user=riaqn argv=/bin/env USERNAME=myname@gmail.com PASSWORD=secret copy2gmail ${user}
   #+end_example
-  You may want to make sure that ~copygmail~ is in your ~$PATH~
+  You may want to make sure that ~copy2gmail~ is in your ~$PATH~
 

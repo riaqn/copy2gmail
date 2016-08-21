@@ -7,26 +7,14 @@ import Network.IMAP.Types
 import Control.Monad
 import Control.Monad.Trans.Either
 import Control.Monad.Trans.Class
-import Control.Monad.Error.Class
+import Control.Monad.Except
 import System.Environment
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 
 folder2tags :: T.Text -> [T.Text]
-{-
-folder2tags f = let f' = T.unpack f in
-                  if f' == "v2ex" then []
-                  -- if sent to v2ex@riaqn.org, drop the mail
-                  else if f' == "feed" then [f]
-                  -- if sent to feed@riaqn.org, add the "feed" tag,
-                  -- this mail won't be shown in INBOX
-                  else [f, (T.pack "INBOX")]
-                  -- otherwise for foo@riaqn.org, attach the mail with
-                  -- the tag "foo" as well as put it into INBOX
--}
-
-folder2tags f = [f]
+folder2tags f = [f, (T.pack "INBOX")]
 
 tryappend :: T.Text -> BS.ByteString -> EitherT T.Text IO [[UntaggedResult]]
 tryappend folder msg = do  
