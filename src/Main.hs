@@ -9,6 +9,7 @@ import Control.Monad.Trans.Either
 import Control.Monad.Trans.Class
 import Control.Monad.Except
 import System.Environment
+import System.Exit
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -44,6 +45,8 @@ main = do
     msg <- lift BS.getContents
     tryappend (T.pack folder) msg
   case e of
-    Left e -> putStrLn (T.unpack e)
+    Left e -> do
+      putStrLn (T.unpack e)
+      exitFailure
     Right _ -> return ()
 
