@@ -1,5 +1,5 @@
 This program reads a mail from =stdin=, and copy it to your
-Gmail account(or any other IMAP account);
+Gmail account(or any other IMAP account).
 
 * Getting started
 #+begin_src sh
@@ -16,21 +16,21 @@ folder will be created automatically if it does not exist.
   should return a list of folder names the mail should be copied into.
   Return ~[]~ if you want to drop the mail.
 
-  Most Gmail clients push notifications for only mails going into
-  ~INBOX~, so in order to receive notifications for a mail, it should
-  be copied into ~INBOX~.
+  Note that most Gmail clients push notifications for only mails going into
+  ~INBOX~, so in order to receive notifications for a mail, the
+  returns list should contain ~INBOX~.
 
-  Don't worry about duplicates; IMAP folder is just Gmail tag, if you
-  copy a mail into multiple folders, it will be a single mail with multiple tags. For
+  Don't worry about duplicates; IMAP folder of Gmail is just tags you
+  see on Gmail clients; if you copy a mail into multiple folders, it will be a single mail with multiple tags. For
   example, if a mail is copied into ~important~ and ~INBOX~, then the
-  mail will has two tags: ~important~ and ~INBOX~.
+  mail will has two tags: ~important~ and ~INBOX~ (thus push notification).
 
   The default ~folder2tags~ maps ~foo~ to ~[foo, INBOX]~; Here is
   another example:
   #+begin_src haskell
     folder2tags f =
       let f' = (T.unpack f) in
-        -- drop the mail sent to v2ex@example.org
+        -- drop the mail sent to v2ex@riaqn.org
         if f' == "v2ex" then []
         -- mail sent to feed@riaqn.org will have the "feed" tag, but won't
         -- go into INBOX, so no notification
@@ -40,8 +40,8 @@ folder will be created automatically if it does not exist.
         else [f, (T.pack "INBOX")]
   #+end_src
 * Self hosted SMTP server
-  If you have a domain name and SMTP server, and you want to store the
-  mail on Gmail server instead of your own server, please continue
+  If you have your own SMTP server, and you want to store
+  mails on Gmail server instead of your own server, please continue
   reading.
 
   This section will show you how to configure Postfix hosting the
@@ -52,16 +52,24 @@ folder will be created automatically if it does not exist.
   Make sure ~riaqn.org~ is in your ~mydestination~ in ~main.cf~, so
   that mails sent to this domain will be handled by ~local_transport~.
 
+  Add following lines into ~master.cf~:
+  #+begin_example 
+    copy2gmail  unix  -       n       n       -       -       pipe
+      flags=ODRhu user=nobody argv=/bin/env USERNAME=myname@gmail.com PASSWORD=secret /usr/local/bin/copy2gmail ${user}
+  #+end_example
+  The path of ~copy2gmail~ has to be absolute as all environment
+  variables including ~$PATH~, which ~env~ uses to find programs, are
+  cleared in external programs by Postfix for security reasons.
+
+  For the parameter ~flags=ODRhu~, and macros like ~${user}~ available, please refer to ~pipe(8)~ in
+  Postfix manual.
+
   Add following lines into ~main.cf~:
   #+begin_example
     local_transport = copy2gmail
     copy2gmail_destination_recipient_limit = 1
   #+end_example
 
-  Add following lines into ~master.cf~:
-  #+begin_example 
-    copy2gmail  unix  -       n       n       -       -       pipe
-      flags=ODRhu user=riaqn argv=/bin/env USERNAME=myname@gmail.com PASSWORD=secret copy2gmail ${user}
-  #+end_example
-  You may want to make sure that ~copy2gmail~ is in your ~$PATH~
-
+  This two lines specify ~copy2gmail~ in ~master.cf~ as the transport
+  for mails to be delivered locally(that is, sent to ~mydestination~).
+  For more information of transport of Postfix, refer to ~transport(5)~.
