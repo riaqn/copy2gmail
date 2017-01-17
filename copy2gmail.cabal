@@ -19,8 +19,6 @@ executable copy2gmail
   build-depends:       base >= 4.7 && < 5
                      , imap
                      , connection
-                     , either
                      , transformers
                      , bytestring
                      , text
-                     , mtl

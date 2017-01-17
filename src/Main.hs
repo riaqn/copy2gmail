@@ -5,48 +5,63 @@ import Network.Connection
 import Network.IMAP
 import Network.IMAP.Types
 import Control.Monad
-import Control.Monad.Trans.Either
+import Control.Monad.Trans.Except
 import Control.Monad.Trans.Class
-import Control.Monad.Except
 import System.Environment
 import System.Exit
-
-import qualified Data.ByteString as BS
+import Data.List
 import qualified Data.Text as T
 
-folder2tags :: T.Text -> [T.Text]
-folder2tags f = [f, (T.pack "INBOX")]
+import Data.ByteString (ByteString)
+import Data.ByteString.Char8 (pack)
+import qualified Data.ByteString as BS
 
-tryappend :: T.Text -> BS.ByteString -> EitherT T.Text IO [[UntaggedResult]]
-tryappend folder msg = do  
+folder2tags :: String -> [T.Text]
+folder2tags f = map T.pack $ if elem f ["v2ex"] then []
+  else if elem f ["feed", "haskell-cafe", "smzdm-faxian", "smzdm", "smzdm-haitao"] then [f]
+  else [f, "INBOX"]
+
+tryappend :: String -> BS.ByteString -> IO (Either T.Text [[UntaggedResult]])
+tryappend folder msg = runExceptT $ do  
   let tls = TLSSettingsSimple False False False
   let params = ConnectionParams "imap.gmail.com" 993 (Just tls) Nothing
   conn <- lift $ connectServer params Nothing
   username <- lift $ getEnv "USERNAME"
   password <- lift $ getEnv "PASSWORD"
-  EitherT $ simpleFormat $ login conn (T.pack username) (T.pack password)
+  ExceptT $ simpleFormat $ login conn (T.pack username) (T.pack password)
   let tags = folder2tags folder
   let try tag =
         let loop = do
-              (EitherT $ simpleFormat $ append conn tag msg Nothing Nothing) `catchError`
-                (\e -> if T.isPrefixOf (T.pack "[TRYCREATE]") e then do
-                    EitherT $ simpleFormat $ create conn tag
-                    loop
-                       else throwError e)
+              r <- simpleFormat $ append conn tag msg Nothing Nothing
+              case r of
+                Left e -> if isPrefixOf "[TRYCREATE]" (T.unpack e) then do
+                  r <- simpleFormat $ create conn tag
+                  case r of
+                    Left e -> error $ T.unpack e
+                    Right b -> return ()
+                  loop
+                  else do
+                  error $ T.unpack e
+                Right b -> return b
         in loop
-    in mapM try tags
+    in lift $ mapM try tags
     
 main :: IO ()
 main = do
-  e <- runEitherT $ do
+  e <- runExceptT $ do
     args <- lift getArgs
-    when (length args /= 1) (left $ T.pack "requires exactly one argument representing the folder")
-    let folder = args !! 0
+    folder <- case args of
+      [] -> throwE "pass the folder name as argument"
+      [x] -> return x
+      _ -> throwE "too many arguments"
     msg <- lift BS.getContents
-    tryappend (T.pack folder) msg
+    r <- lift $ tryappend folder msg
+    case r of
+      Left e -> throwE $ T.unpack e
+      Right b -> return b
   case e of
     Left e -> do
-      putStrLn (T.unpack e)
+      putStrLn e 
       exitFailure
     Right _ -> return ()
 
