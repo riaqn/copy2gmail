@@ -19,7 +19,7 @@ import qualified Data.ByteString as BS
 folder2tags :: String -> [T.Text]
 folder2tags f = map T.pack $ if elem f ["v2ex"] then []
   else if elem f ["feed", "haskell-cafe", "smzdm-faxian", "smzdm", "smzdm-haitao"] then [f]
-  else [f, "INBOX"]
+  else ["INBOX", f]
 
 tryappend :: String -> BS.ByteString -> IO (Either T.Text [[UntaggedResult]])
 tryappend folder msg = runExceptT $ do  
@@ -32,9 +32,11 @@ tryappend folder msg = runExceptT $ do
   let tags = folder2tags folder
   let try tag =
         let loop = do
+              putStrLn "try append"
               r <- simpleFormat $ append conn tag msg Nothing Nothing
               case r of
                 Left e -> if isPrefixOf "[TRYCREATE]" (T.unpack e) then do
+                  putStrLn "folder inexists, try create"
                   r <- simpleFormat $ create conn tag
                   case r of
                     Left e -> error $ T.unpack e
